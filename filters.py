@@ -96,7 +96,7 @@ class Naive(Filter):
 
 class Kalman_Ensemble(Filter):
 
-    def __init__(self, n, linear):
+    def __init__(self, n, linear = True):
         super().__init__(n, linear)
         self.u_est = np.array(self.parts).mean()
 
@@ -117,7 +117,7 @@ class Kalman_Ensemble(Filter):
 
         u_estimates = []
 
-        u_estimates = self.parts + K * y_measure - y_meas
+        u_estimates = self.parts + K * (y_measure - y_meas)
         self.parts = u_estimates
 
         new_u_est = np.array(u_estimates).mean()
@@ -134,7 +134,7 @@ class Kalman_Ensemble(Filter):
 
 
 class Bootstrap_PT(Filter):
-    def __init__(self, n, linear, beta_sq = 0.7):
+    def __init__(self, n, linear = True, beta_sq = 0.7):
         super().__init__(n, linear)
         self.ESS_hist = []
         self.beta_sq = beta_sq
@@ -152,9 +152,9 @@ class Bootstrap_PT(Filter):
     def analyse(self, y_meas, u_true):
         estimates = self.parts
         likelihoods = norm(H * estimates, T).pdf(y_meas) if self.linear else norm(0, np.exp(estimates) * self.beta_sq).pdf(y_meas)
-        #like_exp = np.exp(likelihoods)
-        #self.weights = like_exp / np.sum(like_exp)
-        self.weights = likelihoods / np.sum(likelihoods)
+        like_exp = np.exp(likelihoods)
+        self.weights = like_exp / np.sum(like_exp)
+        #self.weights = likelihoods / np.sum(likelihoods)
 
         u_est_b = np.dot(self.weights, estimates)
         
