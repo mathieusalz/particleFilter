@@ -134,10 +134,13 @@ class Kalman_Ensemble(Filter):
 
 
 class Bootstrap_PT(Filter):
-    def __init__(self, n, linear = True, beta_sq = 0.7):
+    def __init__(self, n, linear = True, phi = 0.98):
         super().__init__(n, linear)
         self.ESS_hist = []
-        self.beta_sq = beta_sq
+        self.beta_sq = 0.7
+        self.phi = phi
+        self.loglikehood = 0
+        self.likelihood = 1
 
     def resample(self):
 
@@ -154,7 +157,6 @@ class Bootstrap_PT(Filter):
         likelihoods = norm(H * estimates, T).pdf(y_meas) if self.linear else norm(0, np.exp(estimates) * self.beta_sq).pdf(y_meas)
         like_exp = np.exp(likelihoods)
         self.weights = like_exp / np.sum(like_exp)
-        #self.weights = likelihoods / np.sum(likelihoods)
 
         u_est_b = np.dot(self.weights, estimates)
         
@@ -162,6 +164,8 @@ class Bootstrap_PT(Filter):
 
         if self.linear:
             self.update_expect(estimates, u_true)
+        else:
+            self.update_loglikelihood(likelihoods)
 
         return u_est_b
 
@@ -171,3 +175,8 @@ class Bootstrap_PT(Filter):
             self.resample()
         self.predict()
         self.analyse(y_meas, u_true)
+    
+    def update_loglikelihood(self, likelihoods):
+        self.loglikehood += np.log(likelihoods.sum() * 1/self.n)
+        self.likelihood *= likelihoods.sum() * 1/self.n
+        
