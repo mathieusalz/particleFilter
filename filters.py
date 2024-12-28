@@ -1,12 +1,12 @@
 import numpy as np
 from scipy.stats import norm
 from abc import ABC, abstractmethod
-from process import curr_y, next_u
+from process import curr_y_lin, next_u_lin, curr_y_nonlin, next_u_nonlin
 from constants import A,C,H,T
 
 class Filter():
 
-    def __init__(self, n):
+    def __init__(self, n = 1, linear = True):
         self.n = n
         self.parts = np.random.normal(0, 1, self.n)
         self.weights = np.ones(self.n)/self.n
@@ -14,6 +14,9 @@ class Filter():
         self.u_est = None
         self.expect = 0
         self.iters = 0
+        self.curr_y = curr_y_lin if linear else curr_y_nonlin
+        self.next_u = next_u_lin if linear else next_u_nonlin
+        self.linear = linear
 
     @abstractmethod
     def predict(self):
@@ -38,12 +41,13 @@ class Filter():
 class Kalman(Filter):
 
     def __init__(self):
-        super().__init__(n = 1)
+        super().__init__()
 
         self.var = 1
         self.var_pred = 0
         self.u_pred = None
         self.u_prev_est = self.parts
+        self.var_hist = []
 
     def predict(self):
         u_pred = A * self.u_prev_est
@@ -61,7 +65,12 @@ class Kalman(Filter):
         self.var = A * self.var_pred * A + C
 
         self.update(u_pred_analysis)
+        
         self.update_expect(u_pred_analysis, u_true)
+
+    def update(self, u_pred_analysis):
+        super().update(u_pred_analysis)
+        self.var_hist.append(self.var)
     
     def iterate(self, y_meas, u_true = None):
 
@@ -72,9 +81,9 @@ class Kalman(Filter):
 class Naive(Filter):
 
     def __init__(self):
-        super().__init__(n = 1)
+        super().__init__()
 
-    def predict(self, y_meas, u_true):
+    def predict(self, y_meas, u_true = False):
         u_estimate = y_meas/H
 
         self.update_expect(u_estimate, u_true)
@@ -87,15 +96,15 @@ class Naive(Filter):
 
 class Kalman_Ensemble(Filter):
 
-    def __init__(self, n):
-        super().__init__(n)
+    def __init__(self, n, linear):
+        super().__init__(n, linear)
         self.u_est = np.array(self.parts).mean()
 
     def predict(self):
-        self.parts = next_u(self.parts, self.n)
+        self.parts = self.next_u(self.parts, self.n)
 
     def analyse(self, y_measure, u_true):
-        y_meas = curr_y(self.parts, self.n)
+        y_meas = self.curr_y(self.parts, self.n)
         u_preds = self.parts
         
         I = np.identity(self.n)
@@ -113,7 +122,8 @@ class Kalman_Ensemble(Filter):
 
         new_u_est = np.array(u_estimates).mean()
 
-        self.update_expect(u_estimates, u_true)
+        if self.linear:
+            self.update_expect(u_estimates, u_true)
         self.update(new_u_est)
         return new_u_est
 
@@ -124,9 +134,10 @@ class Kalman_Ensemble(Filter):
 
 
 class Bootstrap_PT(Filter):
-    def __init__(self, n):
-        super().__init__(n)
+    def __init__(self, n, linear, beta_sq = 0.7):
+        super().__init__(n, linear)
         self.ESS_hist = []
+        self.beta_sq = beta_sq
 
     def resample(self):
 
@@ -136,17 +147,21 @@ class Bootstrap_PT(Filter):
         self.ESS_hist.append(1 / (self.n * (self.weights**2).sum()))
 
     def predict(self):
-        self.parts = next_u(self.parts, self.n)
+        self.parts = self.next_u(self.parts, self.n)
 
     def analyse(self, y_meas, u_true):
         estimates = self.parts
-        likelihoods = norm(H * estimates, T).pdf(y_meas)
+        likelihoods = norm(H * estimates, T).pdf(y_meas) if self.linear else norm(0, np.exp(estimates) * self.beta_sq).pdf(y_meas)
+        #like_exp = np.exp(likelihoods)
+        #self.weights = like_exp / np.sum(like_exp)
         self.weights = likelihoods / np.sum(likelihoods)
 
         u_est_b = np.dot(self.weights, estimates)
         
         self.update(u_est_b)
-        self.update_expect(estimates, u_true)
+
+        if self.linear:
+            self.update_expect(estimates, u_true)
 
         return u_est_b
 
