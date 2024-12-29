@@ -4,11 +4,11 @@ import pandas as pd
 import math
 
 def next_u_lin(u_prev, n = 1):
-    noise = np.random.normal(0, C, n)
+    noise = np.random.normal(0, C ** 0.5, n)
     return A * u_prev + noise
 
 def curr_y_lin(u, n = 1):
-    noise = np.random.normal(0, T, n)
+    noise = np.random.normal(0, T ** 0.5, n)
     return H * u + noise
 
 def next_u_nonlin(u_prev, n = 1, phi = 0.98, var = 0.16):
@@ -30,9 +30,9 @@ def gen_process(n = 2000, linear = True):
         u_prev = u[i-1] if i>0 else u_0
 
         u_next = next_u_lin(u_prev) if linear else next_u_nonlin(u_prev)
-        y_meas = curr_y_lin(u_prev) if linear else curr_y_nonlin(u_prev)
-        y.append(curr_y_lin(y_meas))
-        u.append(next_u_lin(u_next))
+        y_meas = curr_y_lin(u_next) if linear else curr_y_nonlin(u_next)
+        y.append(y_meas)
+        u.append(u_next)
 
     iters = [i+1 for i in range(len(y))]
 
