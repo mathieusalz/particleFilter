@@ -27,7 +27,7 @@ class Filter():
             self.expect += (self.weights * (u_estimates - u_true)**2).sum()
 
     def RMSE(self):
-        return self.expect/self.iters
+        return (self.expect/self.iters) ** 0.5
     
     def update(self, new_u_est):
         self.iters += 1
@@ -65,13 +65,13 @@ class Kalman(Filter):
         self.var = A * self.var_pred * A + C
 
         self.update(u_pred_analysis)
-        
+
         self.update_expect(u_pred_analysis, u_true)
 
     def update(self, u_pred_analysis):
         super().update(u_pred_analysis)
         self.var_hist.append(self.var)
-    
+
     def iterate(self, y_meas, u_true = None):
 
         self.predict()
@@ -154,7 +154,7 @@ class Bootstrap_PT(Filter):
 
     def analyse(self, y_meas, u_true):
         estimates = self.parts
-        likelihoods = norm(H * estimates, T).pdf(y_meas) if self.linear else norm(0, np.exp(estimates) * self.beta_sq).pdf(y_meas)
+        likelihoods = norm(H * estimates, T ** 0.5).pdf(y_meas) if self.linear else norm(0, np.exp(estimates) * self.beta_sq).pdf(y_meas)
         like_exp = np.exp(likelihoods)
         self.weights = like_exp / np.sum(like_exp)
 
@@ -175,8 +175,7 @@ class Bootstrap_PT(Filter):
             self.resample()
         self.predict()
         self.analyse(y_meas, u_true)
-    
+
     def update_loglikelihood(self, likelihoods):
         self.loglikehood += np.log(likelihoods.sum() * 1/self.n)
         self.likelihood *= likelihoods.sum() * 1/self.n
-        
