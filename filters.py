@@ -43,33 +43,29 @@ class Kalman(Filter):
     def __init__(self):
         super().__init__()
 
-        self.var = 1
-        self.var_pred = 0
-        self.u_pred = None
-        self.u_prev_est = self.parts
-        self.var_hist = []
+        self.sigma_a = 1
+        self.sigma_p = 0
+        self.mu_a = None
+        self.mu_p = self.parts
+        self.sigma_hist = []
 
     def predict(self):
-        u_pred = A * self.u_prev_est
-        self.u_pred = u_pred
-
-        self.var_pred = self.var * A + C 
-        
+        self.mu_p = A * self.mu_a
+        self.sigma_p = self.sigma_a * A + C 
     
     def analyse(self, y_meas, u_true):
-        d = y_meas - H * self.u_pred
-        S = H * self.var_pred * H + T
-        K = self.var_pred * H * (1/S)
+        d = y_meas - H * self.mu_p
+        S = H * self.sigma_p * H + T
+        K = self.sigma_p * H * (1/S)
 
-        u_pred_analysis = self.u_pred + K * d
-        self.var = A * self.var_pred * A + C
+        mu_a = self.mu_p + K * d
+        self.sigma_a = A * self.sigma_a * A + C
 
-        self.update(u_pred_analysis)
+        self.update(mu_a)
+        self.update_expect(mu_a, u_true)
 
-        self.update_expect(u_pred_analysis, u_true)
-
-    def update(self, u_pred_analysis):
-        super().update(u_pred_analysis)
+    def update(self, mu_a):
+        super().update(mu_a)
         self.var_hist.append(self.var)
 
     def iterate(self, y_meas, u_true = None):
@@ -134,13 +130,14 @@ class Kalman_Ensemble(Filter):
 
 
 class Bootstrap_PT(Filter):
-    def __init__(self, n, linear = True, phi = 0.98):
+    def __init__(self, n, linear = True, phi = 0.98, no_resampling = False):
         super().__init__(n, linear)
         self.ESS_hist = []
         self.beta_sq = 0.7
         self.phi = phi
         self.loglikehood = 0
         self.likelihood = 1
+        self.no_resampling = no_resampling
 
     def resample(self):
 
@@ -171,7 +168,7 @@ class Bootstrap_PT(Filter):
 
     def iterate(self,y_meas, u_true = None):
 
-        if self.iters > 0:
+        if self.iters > 0 and self.no_resampling == False:
             self.resample()
         self.predict()
         self.analyse(y_meas, u_true)
