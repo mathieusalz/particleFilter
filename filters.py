@@ -45,13 +45,13 @@ class Kalman(Filter):
 
         self.sigma_a = 1
         self.sigma_p = 0
-        self.mu_a = None
-        self.mu_p = self.parts
+        self.mu_a = self.parts
+        self.mu_p = None
         self.sigma_hist = []
 
     def predict(self):
-        self.mu_p = A * self.mu_a
-        self.sigma_p = self.sigma_a * A + C 
+        self.mu_p = next_u_lin(self.mu_a)
+        self.sigma_p = A * self.sigma_a * A + C 
     
     def analyse(self, y_meas, u_true):
         d = y_meas - H * self.mu_p
@@ -59,14 +59,14 @@ class Kalman(Filter):
         K = self.sigma_p * H * (1/S)
 
         mu_a = self.mu_p + K * d
-        self.sigma_a = A * self.sigma_a * A + C
+        self.sigma_a = (1 - K *H) * self.sigma_p
 
         self.update(mu_a)
         self.update_expect(mu_a, u_true)
 
     def update(self, mu_a):
         super().update(mu_a)
-        self.var_hist.append(self.var)
+        self.sigma_hist.append(self.sigma_a)
 
     def iterate(self, y_meas, u_true = None):
 
@@ -130,10 +130,11 @@ class Kalman_Ensemble(Filter):
 
 
 class Bootstrap_PT(Filter):
-    def __init__(self, n, linear = True, phi = 0.98, no_resampling = False):
+    def __init__(self, n, linear = True, phi = 0.98, var = 0.16, beta = 0.7, no_resampling = False):
         super().__init__(n, linear)
         self.ESS_hist = []
-        self.beta_sq = 0.7
+        self.beta = beta
+        self.var = var
         self.phi = phi
         self.loglikehood = 0
         self.likelihood = 1
@@ -147,11 +148,11 @@ class Bootstrap_PT(Filter):
         self.ESS_hist.append(1 / (self.n * (self.weights**2).sum()))
 
     def predict(self):
-        self.parts = self.next_u(self.parts, self.n)
+        self.parts = self.next_u(self.parts, self.n, self.phi, self.var)
 
     def analyse(self, y_meas, u_true):
         estimates = self.parts
-        likelihoods = norm(H * estimates, T ** 0.5).pdf(y_meas) if self.linear else norm(0, np.exp(estimates) * self.beta_sq).pdf(y_meas)
+        likelihoods = norm(H * estimates, T ** 0.5).pdf(y_meas) if self.linear else norm(0, np.exp(estimates) * self.beta).pdf(y_meas)
         like_exp = np.exp(likelihoods)
         self.weights = like_exp / np.sum(like_exp)
 

@@ -2,8 +2,9 @@ import numpy as np
 from constants import A,C,H,T
 import pandas as pd
 import math
+from scipy.special import gamma
 
-def next_u_lin(u_prev, n = 1):
+def next_u_lin(u_prev, n = 1, _ = None, __ = None):
     noise = np.random.normal(0, C ** 0.5, n)
     return A * u_prev + noise
 
@@ -12,10 +13,10 @@ def curr_y_lin(u, n = 1):
     return H * u + noise
 
 def next_u_nonlin(u_prev, n = 1, phi = 0.98, var = 0.16):
-    return np.random.normal(phi * u_prev, var, n)
+    return np.random.normal(phi * u_prev, var ** 0.5, n)
 
 def curr_y_nonlin(u, n = 1, beta_sq = 0.7):
-    return np.random.normal(0, beta_sq * np.exp(u) , n)
+    return np.random.normal(0, (beta_sq * np.exp(u)) ** 0.5 , n)
 
 def gen_process(n = 2000, linear = True):
 
