@@ -32,8 +32,8 @@ def metropolis(n_parts = 10, iterations = 50):
 
     for j in range(iterations):
 
-        next_var = np.random.normal(var, 0.01, 1)
-        next_beta = np.nandom.normal(beta, 0.01, 1)
+        next_var = np.abs(np.random.normal(var, 0.01, 1))
+        next_beta = np.abs(np.nandom.normal(beta, 0.01, 1))
         p_var, p_beta = inverse_gamma_dist.pdf(next_var), inverse_gamma_dist.pdf(next_beta)
         
         new_bs = Bootstrap_PT(n = n_parts, linear = False, var = next_var, beta = next_beta)

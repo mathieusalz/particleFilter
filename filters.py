@@ -156,7 +156,7 @@ class Bootstrap_PT(Filter):
         if self.linear:
             likelihoods = norm(H * estimates, T ** 0.5).pdf(y_meas)
         else:
-            likelihoods = norm(0, (np.exp(estimates)**0.5) * self.beta).pdf(y_meas)
+            likelihoods = norm(0, np.exp(estimates/2) * self.beta).pdf(y_meas)
         like_exp = np.exp(likelihoods)
         self.weights = like_exp / np.sum(like_exp)
 

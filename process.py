@@ -16,7 +16,7 @@ def next_u_nonlin(u_prev, n = 1, phi = 0.98, var = 0.16):
     return np.random.normal(phi * u_prev, var ** 0.5, n)
 
 def curr_y_nonlin(u, n = 1, beta_sq = 0.7):
-    return np.random.normal(0, (beta_sq * np.exp(u)) ** 0.5 , n)
+    return np.random.normal(0, beta_sq * np.exp(u/2) , n)
 
 def gen_process(n = 2000, linear = True):
 
